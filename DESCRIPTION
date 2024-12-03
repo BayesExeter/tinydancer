@@ -1,0 +1,20 @@
+Package: tinydancer
+Title: Fast Uniform Samples of Tiny Subspaces for History Matching or Level Set Estimation
+Version: 0.0.1.9000
+Authors@R: c(person( given = "Daniel", family = "Williamson", email = "d.williamson@exeter.ac.uk", role = c("aut", "cre"), comment = c(ORCID = "https://orcid.org/0000-0001-8917-3300")))
+Description: This package helps to overcome a problem often encountered during history matching, 
+  but is possible during any kind of level set estimation, where the size of a target 
+  space/level set is small or tiny relative to the original parameter space. Standard 
+  approaches involve rejection sampling and often prove a major bottleneck in multi-wave 
+  history matching workflows. The methods in this package leverage parallel tempering and 
+  a custom subset simulation algorithm to generate uniform samples from tiny subspaces 
+  defined as level sets of a custom function called Implausibility. See examples and 
+  vignettes for more details.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports: 
+    parallel,
+    stats,
+    utils
