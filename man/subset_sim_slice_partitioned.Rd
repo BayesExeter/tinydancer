@@ -9,7 +9,8 @@ subset_sim_slice_partitioned(
   dims,
   target_levels = 3,
   control_list = list(),
-  n_partitions = 4
+  n_partitions = 4,
+  random = FALSE
 )
 }
 \arguments{
@@ -33,6 +34,8 @@ subset_sim_slice_partitioned(
 }}
 
 \item{n_partitions}{Integer. Number of partitions to divide the sampling space into.}
+
+\item{random}{Logical. If TRUE, dimensions are chosen randomly for splitting. Default is FALSE.}
 }
 \value{
 A list containing combined samples and their corresponding implausibilities.

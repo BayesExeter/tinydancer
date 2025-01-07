@@ -4,19 +4,22 @@
 \alias{partition_space}
 \title{Partition the Sampling Space}
 \usage{
-partition_space(box_limits, n_partitions)
+partition_space(box_limits, n_partitions, random = FALSE)
 }
 \arguments{
-\item{box_limits}{Numeric matrix. A \verb{dims x 2} matrix where each row specifies the lower and upper bounds
+\item{box_limits}{Numeric matrix. A dims x 2 matrix where each row specifies the lower and upper bounds
 of a dimension in the sampling space.}
 
-\item{n_partitions}{Integer. The number of partitions to create along each dimension.}
+\item{n_partitions}{Integer. The exact number of partitions to create.}
+
+\item{random}{Logical. If TRUE, dimensions are chosen randomly for splitting. Default is FALSE.}
 }
 \value{
 A list where each element is a matrix representing a partition. Each matrix has two columns,
-\code{"Lower"} and \code{"Upper"}, and rows corresponding to dimensions.
+"Lower" and "Upper", and rows corresponding to dimensions.
 }
 \description{
-This function partitions a multidimensional box into smaller subspaces. Each partition is represented
-as a set of lower and upper bounds for each dimension.
+This function partitions a multidimensional box into exactly \code{n_partitions} subspaces.
+The splitting prioritizes dimensions sequentially: the first dimension is divided first,
+followed by the second, and so on, as needed. Alternatively, the splits can be done in a random order.
 }
