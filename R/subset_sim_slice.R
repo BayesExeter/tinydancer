@@ -15,6 +15,7 @@
 #'          \item `num_mutations`: Integer. Number of mutations per chain (default: 30).
 #'          \item `num_iterations`: Integer. Number of iterations for the final sampling wave (default: 1000).
 #'          \item `box_limits`: Numeric matrix (dims x 2). Bounds for the initial space.
+#'          \item `estimate_volume`: Logical. Should we estimate the proportion of full space volume occupied by the target? (default: FALSE)
 #'          \item `switch_settings_list`: List of length `num_switches` containing the possible values for each switch input (default: NULL).
 #'          \item `debug_mode`: Logical. Enable debug messages (default: FALSE).
 #'          \item `max_num_chains`: Integer. Maximum number of chains (default: 8).
@@ -26,6 +27,7 @@
 #'           \item `x`: Numeric matrix. Uniform samples from the final sampling wave.
 #'           \item `implausibilities`: Numeric vector or matrix. Implausibility values associated with the samples.
 #'           \item `reached_target`: Logical. Whether the target implausibility levels were reached.
+#'           \item `volume_estimate`: Scalar, the estimated relative volume of the target space (compared to the full space).
 #'         }
 #' @examples
 #' # Example usage
@@ -68,6 +70,7 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
     num_mutations = 30,
     num_iterations = 1000,
     box_limits = NULL,
+    estimate_volume = FALSE,
     switch_settings_list = NULL,
     debug_mode = FALSE,
     max_num_chains = 8,
@@ -83,16 +86,18 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
   } else {
     box_limits <- control_list$box_limits
   }
+  vol_target <- NULL
 
   # Initialize first chain
+  N_I <- control_list$num_mutations * 10 #number of initial samples, maybe x100 better
   chain1_sample <- sapply(1:(dims - control_list$num_switches), function(i)
-    runif(control_list$num_mutations * 10, min = box_limits[i, 1], max = box_limits[i, 2]))
+    runif(N_I, min = box_limits[i, 1], max = box_limits[i, 2]))
   num_waves <- length(target_levels)
   num_switches <- control_list$num_switches
   switch_settings_list <- control_list$switch_settings_list
 
   if (num_switches > 0) {
-    switches <- t(sapply(1:(control_list$num_mutations * 10), function(i)
+    switches <- t(sapply(1:N_I, function(i)
       unlist(lapply(switch_settings_list, function(e) sample(e, 1)))))
     chain1_sample <- cbind(chain1_sample, switches)
   }
@@ -105,9 +110,15 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
     x_starts <- chain1_sample[which.min(chain1_imps), 1:dims]
     dim(x_starts) <- c(1, dims)
     current_lower <- max(c(target_levels, min(chain1_imps)))
+    if(control_list$estimate_volume){#estimate target volume if we're inside
+      if(current_lower==target_levels){#we've found target space
+        #As this is the first chain, we can estimate vol_target directly
+        vol_target <- last(which(sort(chain1_imps) <= target_levels))/N_I
+      }
+    }
   } else {
     # Multi-wave initialization
-    t_indices <- 1:control_list$num_mutations
+    t_indices <- 1:N_I
     in_space_i <- TRUE
     i <- 0
     while (in_space_i & (i < num_waves)) {
@@ -126,6 +137,10 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
       start_index <- which.min(chain1_imps[, i])
       if (!in_space_i) {
         current_lower[i] <- chain1_imps[start_index, i]
+      }
+      else if(control_list$estimate_volume){#We've found the target sub-volume, so let's estimate it
+        #This code relies on implausibility returning Inf for waves beyond any that don't reach the target, see examples
+        vol_target <- last(which(sort(chain1_imps[,i])<= target_levels[i]))/N_I
       }
     }
     x_starts <- chain1_sample[start_index, ]
@@ -193,6 +208,18 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
     if (control_list$debug_mode) {
       print("Generating Final Samples")
     }
+    if(control_list$estimate_volume & is.null(vol_target)){# we have reached the target, need to estimate sub-volume of the target
+      if(num_waves==1){
+        q = last(which(sort(new_samples[,dims+1]) <= target_levels))/control_list$num_mutations
+      }
+      else{
+        q = last(which(sort(new_samples[,dims+num_waves]) <= target_levels))/control_list$num_mutations
+      }
+      vol_target <- q/(N_I*control_list$num_mutations^(num_chains-2))
+    }
+    else{
+      vol_target <- "Not estimated"
+    }
     final_samples <- one_slice_all(
       m = control_list$num_iterations,
       imp_level = current_lower,
@@ -206,13 +233,15 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
     return(list(
       X = final_samples[, 1:dims],
       Implausibilities = final_samples[, -c(1:dims)],
-      reached_target = TRUE
+      reached_target = TRUE,
+      volume_estimate = vol_target
     ))
   } else {
     return(list(
       X = x_starts[, 1:dims],
       Implausibilities = current_lower,
-      reached_target = FALSE
+      reached_target = FALSE,
+      volume_estimate = vol_target
     ))
   }
 }

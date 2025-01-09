@@ -27,6 +27,7 @@ A vector of length 1 indicates a single wave and could be used to indicate a sin
 \item \code{num_mutations}: Integer. Number of mutations per chain (default: 30).
 \item \code{num_iterations}: Integer. Number of iterations for the final sampling wave (default: 1000).
 \item \code{box_limits}: Numeric matrix (dims x 2). Bounds for the initial space.
+\item \code{estimate_volume}: Logical. Should we estimate the proportion of full space volume occupied by the target? (default: FALSE)
 \item \code{switch_settings_list}: List of length \code{num_switches} containing the possible values for each switch input (default: NULL).
 \item \code{debug_mode}: Logical. Enable debug messages (default: FALSE).
 \item \code{max_num_chains}: Integer. Maximum number of chains (default: 8).
@@ -40,6 +41,7 @@ A list containing:
 \item \code{x}: Numeric matrix. Uniform samples from the final sampling wave.
 \item \code{implausibilities}: Numeric vector or matrix. Implausibility values associated with the samples.
 \item \code{reached_target}: Logical. Whether the target implausibility levels were reached.
+\item \code{volume_estimate}: Scalar, the estimated relative volume of the target space (compared to the full space).
 }
 }
 \description{

@@ -12,6 +12,7 @@
 #'     \item `num_switches`: Number of switches in the input space.
 #'     \item `volume_ratio`: Volume ratio for sampling.
 #'     \item `num_mutations`: Number of mutations per iteration.
+#'     \item `num_iterations`: Integer. Number of iterations for the final sampling wave (default: 1000).
 #'     \item `max_num_chains`: Maximum number of chains to use per partition.
 #'     \item `box_limits`: Matrix defining the bounds of the sampling space.
 #'     \item `switch_settings_list`: List of settings for switches.
@@ -21,7 +22,7 @@
 #'   }
 #' @param n_partitions Integer. Number of partitions to divide the sampling space into.
 #' @param random Logical. If TRUE, dimensions are chosen randomly for splitting. Default is FALSE.
-#' @return A list containing combined samples and their corresponding implausibilities.
+#' @return A list containing combined samples, `X`, and their corresponding implausibilities, `Implausibilities`. The list also includes an estimate of the relative volume of the target space, `volume_estimate`.
 #' @examples
 #' # Example usage
 #' st1 <- rbind(c(0.000002, 0.000000875), c(0.000000875, 0.00025))
@@ -61,8 +62,10 @@ subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3
     num_switches = 0,
     volume_ratio = 0.1,
     num_mutations = 30,
+    num_iterations = 1000,
     max_num_chains = 8,
     box_limits = NULL,
+    estimate_volume = TRUE,
     switch_settings_list = NULL,
     debug_mode = FALSE,
     levels_dp = 2,
@@ -72,9 +75,14 @@ subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3
   # Merge defaults with user-specified options
   control_list <- modifyList(defaults, control_list)
   box_limits <- control_list$box_limits
+  if(!control_list$estimate_volume){
+    control_list$estimate_volume <- TRUE
+    message("estimate_volume is required for uniform sampling and has been turned on")
+  }
 
   # Partition space
   partitions <- partition_space(box_limits, n_partitions)
+  partition_volumes <- lapply(partitions, function(e) prod(e[,'Upper'] - e[,'Lower']))
 
   # Run simulations on partitions
   results <- if (control_list$debug_mode) {
@@ -89,22 +97,72 @@ subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3
     })
   }
 
+  for(jj in seq_along(results)){
+    results[[jj]]$target_volume <- results[[jj]]$volume_estimate*partition_volumes[[jj]]
+  }
+
   # Filter successful results
   successful_results <- Filter(function(res) res$reached_target, results)
   if (length(successful_results) == 0) {
     stop("No partitions successfully reached the target! Consider allowing more partitions or more chains per partition.")
   }
 
-  # Combine results from all partitions
-  combined_samples <- do.call(rbind, lapply(successful_results, function(res) res$X))
-  #combined_implausibilities <- do.call(c, lapply(successful_results, function(res) res$Implausibilities))
+  #Importance sampling to return a uniform sample
+  target_volume <- sum(sapply(successful_results, function(kk) kk$target_volume))
+  importance_weights <- sapply(successful_results, function(res) res$target_volume)/target_volume
+  sampled_list_indices <- sample(seq_along(successful_results),
+                                 size = control_list$num_iterations, replace = TRUE, prob= importance_weights)
+  counts <- table(sampled_list_indices)
+  names(counts) <- as.numeric(names(counts))
+
+  # Sampling from the lists
+  sampled_results <- lapply(names(counts), function(idx) {
+    idx <- as.numeric(idx)  # Convert name back to numeric index
+    list_element <- successful_results[[idx]]  # Get the corresponding list element
+
+    # Number of samples to take
+    n_samples <- counts[[as.character(idx)]]
+
+    # Sample from rows of X and corresponding Implausibilities
+    n_rows <- if (is.matrix(list_element$X)) nrow(list_element$X) else length(list_element$X)
+    sampled_rows <- sample(seq_len(n_rows), size = n_samples, replace = FALSE)
+
+    sampled_X <- list_element$X[sampled_rows, , drop = FALSE]
+
+    if (is.vector(list_element$Implausibilities)) {
+      # If Implausibilities is a vector, extract sampled elements directly
+      sampled_Implausibilities <- list_element$Implausibilities[sampled_rows]
+    } else {
+      # If Implausibilities is a matrix, extract sampled rows
+      sampled_Implausibilities <- list_element$Implausibilities[sampled_rows, , drop = FALSE]
+    }
+
+    list(X = sampled_X, Implausibilities = sampled_Implausibilities)
+  })
+
+  # Combine results into a single structure
+  combined_samples <- do.call(rbind, lapply(sampled_results, function(res) res$X))
   combined_implausibilities <- do.call(
     if (is.vector(successful_results[[1]]$Implausibilities)) c else rbind,
-    lapply(successful_results, function(res) res$Implausibilities)
+    lapply(sampled_results, function(res) res$Implausibilities)
   )
 
-  return(list(X = combined_samples, Implausibilities = combined_implausibilities))
+  #Produce a relative volume (of the target to the full space) estimate
+  relative_volume <- target_volume/prod(box_limits[,2] - box_limits[,1])
+
+  return(list(X = combined_samples, Implausibilities = combined_implausibilities, volume_estimate = relative_volume))
 }
+
+
+  # Combine results from all partitions
+#  combined_samples <- do.call(rbind, lapply(successful_results, function(res) res$X))
+#  combined_implausibilities <- do.call(
+#    if (is.vector(successful_results[[1]]$Implausibilities)) c else rbind,
+#    lapply(successful_results, function(res) res$Implausibilities)
+#  )
+
+#  return(list(X = combined_samples, Implausibilities = combined_implausibilities))
+#}
 
 
 #' Partition the Sampling Space

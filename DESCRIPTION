@@ -17,4 +17,5 @@ RoxygenNote: 7.3.2
 Imports: 
     parallel,
     stats,
-    utils
+    utils,
+    dplyr

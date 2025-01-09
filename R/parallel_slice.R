@@ -20,7 +20,7 @@
 #'
 #' @return A list containing:
 #' \describe{
-#'   \item{\code{uniform_sample_list}}{A list of matrices, one per chain, containing the sampled values. The last chain contains samples from the `final_target_levels`. The matrices are `num_iterations`x `d+num_waves` where `num_waves` is the length of an element of `imp_levels`}.
+#'   \item{\code{uniform_sample_list}}{A list of matrices, one per chain, containing the sampled values. The last chain contains samples from the `final_target_levels`. The matrices are `num_iterations`x `d+num_waves` where `num_waves` is the length of an element of `imp_levels`.}
 #'   \item{\code{restart}}{The state of the chains for restarting the sampler.}
 #' }
 #' @note The first chain samples uniformly over the box, so it does not use implausibility levels or starting values.

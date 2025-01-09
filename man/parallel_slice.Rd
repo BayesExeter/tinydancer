@@ -54,7 +54,7 @@ of a point given the required levels. (see main examples)}
 \value{
 A list containing:
 \describe{
-\item{\code{uniform_sample_list}}{A list of matrices, one per chain, containing the sampled values. The last chain contains samples from the \code{final_target_levels}. The matrices are \code{num_iterations}x \code{d+num_waves} where \code{num_waves} is the length of an element of \code{imp_levels}}.
+\item{\code{uniform_sample_list}}{A list of matrices, one per chain, containing the sampled values. The last chain contains samples from the \code{final_target_levels}. The matrices are \code{num_iterations}x \code{d+num_waves} where \code{num_waves} is the length of an element of \code{imp_levels}.}
 \item{\code{restart}}{The state of the chains for restarting the sampler.}
 }
 }

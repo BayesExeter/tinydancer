@@ -25,6 +25,7 @@ subset_sim_slice_partitioned(
 \item \code{num_switches}: Number of switches in the input space.
 \item \code{volume_ratio}: Volume ratio for sampling.
 \item \code{num_mutations}: Number of mutations per iteration.
+\item \code{num_iterations}: Integer. Number of iterations for the final sampling wave (default: 1000).
 \item \code{max_num_chains}: Maximum number of chains to use per partition.
 \item \code{box_limits}: Matrix defining the bounds of the sampling space.
 \item \code{switch_settings_list}: List of settings for switches.
@@ -38,7 +39,7 @@ subset_sim_slice_partitioned(
 \item{random}{Logical. If TRUE, dimensions are chosen randomly for splitting. Default is FALSE.}
 }
 \value{
-A list containing combined samples and their corresponding implausibilities.
+A list containing combined samples, \code{X}, and their corresponding implausibilities, \code{Implausibilities}. The list also includes an estimate of the relative volume of the target space, \code{volume_estimate}.
 }
 \description{
 This function divides the sampling space into partitions, performs subset
