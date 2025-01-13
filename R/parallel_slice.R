@@ -61,7 +61,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
       implausibility = implausibility
     ))
   } else {
-    plan("multicore", wokers=num_chains-1)
+    plan("multicore", workers=num_chains-1)
     future.apply::future_lapply(2:num_chains, function(j) one_slice(
       x_start = x_starts[j - 1, ],
       M = num_mutations,
