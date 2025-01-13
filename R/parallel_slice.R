@@ -61,7 +61,8 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
       implausibility = implausibility
     ))
   } else {
-    mclapply(2:num_chains, function(j) one_slice(
+    plan("multicore", wokers=num_chains-1)
+    future.apply::future_lapply(2:num_chains, function(j) one_slice(
       x_start = x_starts[j - 1, ],
       M = num_mutations,
       w = volume_ratio^((j - 1) / d),
@@ -70,7 +71,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
       final_levels = final_target_levels,
       final_num_waves = num_waves,
       implausibility = implausibility
-    ))
+    ), future.seed = TRUE)
   }
 
   # Preallocate combined chain results
@@ -116,7 +117,8 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
         implausibility = implausibility
       ))
     } else {
-      mclapply(2:num_chains, function(j) one_slice(
+      plan("multicore", workers = num_chains-1)
+      future.apply::future_lapply(2:num_chains, function(j) one_slice(
         x_start = as.vector(chain_info$Xt[j, ]),
         M = num_mutations,
         w = volume_ratio^((j - 1) / d),
@@ -125,7 +127,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
         final_levels = final_target_levels,
         final_num_waves = num_waves,
         implausibility = implausibility
-      ))
+      ), future.seed = TRUE)
     }
 
     xn_imp[1, ] <- c(chain1_sample, chain1_imp)
