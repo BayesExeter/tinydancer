@@ -16,6 +16,7 @@
 #'   \item{\code{num_mutations}}{Integer. Number of iterations (often called mutations in the Evolutionary Monte Carlo literature) for individual chains within the parallel structure. Default: 30.}
 #'   \item{\code{num_iterations}}{Integer. Number of iterations of the paralel chains. Default: 1000.}
 #'   \item{\code{box_limits}}{Matrix. A \code{dims x 2} matrix specifying the lower and upper bounds of the initial space.}
+#'   \item{\code{fork_chains}}{Logical. Whether or not forked parallel processing is available during construction of temperature ladders with more than 2 rungs. See `details` section below. Defaults to FALSE.}
 #'   \item{\code{switch_settings_list}}{List. A list of length num_switches, each element containing a vector of the possible settings of each switch. Defaults to NULL}
 #'   \item{\code{levels_dp}}{Integer. Number of decimal places for implausibility levels. Default: 2.}
 #'   \item{\code{one_per_level}}{Logical. If \code{TRUE}, ensures unique implausibility levels for each wave. Default: \code{FALSE}.}
@@ -46,7 +47,8 @@
 #' control_list <- list(
 #'   box_limits = cbind(rep(-3, 2), rep(7, 2)),
 #'   num_mutations = 8,
-#'   num_iterations = 100
+#'   num_iterations = 100,
+#'   fork_chains=TRUE
 #' )
 #' new_ladder <- construct_temperature_ladder(
 #'   implausibility = implausibility,
@@ -111,7 +113,8 @@
 #' control_list <- list(
 #'   num_mutations = 8,
 #'   num_iterations = 100,
-#'   box_limits = cbind(rep(-3, 2), rep(7, 2))
+#'   box_limits = cbind(rep(-3, 2), rep(7, 2)),
+#'   fork_chains=TRUE
 #' )
 #' new_ladder <- construct_temperature_ladder(
 #'   implausibility = implausibility,
@@ -119,7 +122,11 @@
 #'   target_levels = c(3, 3, 3, 2.5, 2),
 #'   control_list = control_list
 #' )
-#'@details Currently no stopping rule exists for this, though the printing is sufficiently verbose for the user to understand what is happening. If a target compatible subspace exists, this algorithm will find it eventually, however, if the ladder seems to be converging far above the target, it may be worth the user intervening.
+#'@details A uniform sample of size `control_list$num_iterations` in the full space is evaluated and used to find the next ladder rung, the `implausibility` value defining a sub-volume of space that is `control_list$volume_ratio` times the size of the full space. Full space and the new sub-volume are then sampled uniformly via parallel-tempering MCMC and the next rung is found using the uniform samples from the smallest sub-volume. The full space is always sampled uniformly using `runif`, sub-volumes are sampled using a slice-sampler.
+#'
+#' Once 3 or more rungs exist, the slice samplers will try to run in parallel via mclapply if `control_list$fork_chains` is `TRUE` and via `lapply` otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of `implausibility`, forking can be highly effective, particularly when the function is simple and `control_list$num_mutations` is large. However, functions with calls to Rcpp or Python backends may not work and `mclapply` may not return any errors or may even hang.
+#'
+#' If it is not possible to reach the target space, the function will continue to find smaller and smaller volumes without a stopping rule. The printing is sufficiently verbose for the user to understand that this may be happening. If a target compatible subspace exists, this algorithm will find it eventually, however, if the ladder seems to be converging far above the target, it may be worth the user intervening. Inclusion of a stopping rule is planned for a future version.
 #'@export
 construct_temperature_ladder <- function(implausibility, dims, target_levels, control_list = list()) {
   # Define defaults
@@ -130,7 +137,7 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
     num_iterations = 1000,
     box_limits = NULL,
     switch_settings_list = NULL,
-    debug_mode = FALSE,
+    fork_chains = FALSE,
     levels_dp = 2,
     one_per_level = FALSE,
     print_every = 100
@@ -183,17 +190,17 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
   current_lower <- new_level$new_imps
   imp_levels <- list(current_lower)
   if(length(target_levels)<2)
-    message(sprintf("Currently sampling a ladder with level sets: %.2f. Seeking the next ladder rung...", imp_levels))
+    message(sprintf("Currently sampling a ladder with level sets: %.2f.", imp_levels))
   else
-    message(sprintf("Currently sampling a ladder with level sets: %s. Seeking the next ladder rung...", paste(sprintf("%.2f", unlist(imp_levels)), collapse = ", ")))
+    message(sprintf("Currently sampling a ladder with level sets: %s.", paste(sprintf("%.2f", unlist(imp_levels)), collapse = ", ")))
   x_starts <- new_level$start_value
   dim(x_starts) <- c(1, dims + num_waves)
   num_chains <- 2
-  debug_mode <- control_list$debug_mode
+  fork_chains <- control_list$fork_chains
 
   # Construct the temperature ladder
   while (any(current_lower > target_levels)) {
-    message(sprintf("Current number of chains = %d. Seeking the next implausibility level...", num_chains))
+    message(sprintf("Current number of chains = %d. Seeking the next ladder rung...", num_chains))
     run_chains <- parallel_slice(
       num_chains = num_chains,
       num_mutations = control_list$num_mutations,
@@ -203,7 +210,7 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
       final_target_levels = target_levels,
       x_starts = x_starts[, -c((dims + 1):(dims + num_waves))],
       box_limits = box_limits,
-      debug_mode = debug_mode,
+      fork_chains = fork_chains,
       num_switches = num_switches,
       switch_settings_list = switch_settings_list,
       volume_ratio = control_list$volume_ratio,
@@ -225,18 +232,16 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
     current_lower <- new_level$new_imps
     imp_levels <- c(imp_levels, list(current_lower))
     if(length(target_levels)<2)
-      message(sprintf("Currently sampling a ladder with level sets: %s. Seeking the next ladder rung...",
+      message(sprintf("Currently sampling a ladder with level sets: %s.",
                     paste(sprintf("%.2f", imp_levels), collapse = ", ")))
     else
       message(sprintf(
-        "Currently sampling a ladder with level sets: %s. Seeking the next ladder rung...",
+        "Currently sampling a ladder with level sets: %s.",
         paste(
           lapply(imp_levels, function(levels) paste(sprintf("%.2f", levels), collapse = ", ")),
           collapse = " / "
         )
       ))
-      #message(sprintf("Currently sampling a ladder with level sets: %s. Seeking the next ladder rung...", paste(sprintf("%.2f", unlist(imp_levels)), collapse = ", ")))
-
     x_starts <- matrix(0, nrow = num_chains - 1, ncol = dims + num_waves)
     for (i in 1:(num_chains - 1)) {
       x_starts[i, ] <- all_chains[[i + 1]][nrow(all_chains[[i + 1]]), ]

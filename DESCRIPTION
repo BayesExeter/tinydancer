@@ -18,6 +18,4 @@ Imports:
     parallel,
     stats,
     utils,
-    dplyr,
-    future.apply,
-    future
+    dplyr

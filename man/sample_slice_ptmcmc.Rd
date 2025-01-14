@@ -21,7 +21,7 @@ sample_slice_ptmcmc(
 Available options include:
 \itemize{
 \item \code{num_mutations}: Number of mutations per iteration.
-\item \code{debug_mode}: Logical, whether to enable debug mode.
+\item \code{fork_chains}: Logical. Whether or not forked parallel processing is available during parallel slice sampling with more than 2 chains. See \code{details} section below. Defaults to FALSE.
 \item \code{print_every}: Number of iterations between progress messages.
 }}
 
@@ -34,6 +34,9 @@ A list containing samples from the Parallel Tempering MCMC slice sampler.
 \description{
 This function performs uniform sampling in the specified space using Parallel Tempering MCMC with slice sampling.
 It utilizes the temperature ladder constructed by the provided sampler object.
+}
+\details{
+If 3 or more chains are present in \code{sampler}, the slice samplers will try to run in parallel via mclapply if \code{control_list$fork_chains} is \code{TRUE} and via \code{lapply} otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of \code{implausibility}, forking can be highly effective, particularly when the function is simple and \code{control_list$num_mutations} is large. However, functions with calls to Rcpp or Python backends may not work and \code{mclapply} may not return any errors or may even hang.
 }
 \examples{
 # Example usage

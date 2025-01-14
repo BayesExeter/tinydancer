@@ -29,7 +29,8 @@ subset_sim_slice_partitioned(
 \item \code{max_num_chains}: Maximum number of chains to use per partition.
 \item \code{box_limits}: Matrix defining the bounds of the sampling space.
 \item \code{switch_settings_list}: List of settings for switches.
-\item \code{debug_mode}: Logical. If TRUE, run in debug mode.
+\item \code{debug_mode}: Logical. If TRUE, run each subset_sim in debug mode (with progress messages).
+\item \code{forking}: Logical. If TRUE, each subset simulation is run in parallel with mclapply. Defaults to FALSE, see \code{details} section below.
 \item \code{levels_dp}: Decimal places to round implausibility levels.
 \item \code{one_per_level}: Logical. If TRUE, only retain one sample per level.
 }}
@@ -47,7 +48,9 @@ simulation with slice sampling within each partition, and combines results
 from successful partitions.
 }
 \details{
-Use this function to generate uniform samples within partitions. To combine into uniform samples of the target space, an importance sampling wrapper is required that estimates the subvolumes of each partition containing samples. \emph{Due for next release}
+Uniform samples are generated within each partition using slice sampling. Note uniformity is guaranteed up to the guarantees afforded by slice samplers (we may not have converged/found all of the target compatible space). Samples are then combined across partitions using importance sampling with weights estimated according to the relative volumes of the subspaces found within each partition, to return uniform samples from the target space.
+
+If 2 or more partitions are requested, slice sampling will try to run in parallel via mclapply if \code{control_list$fork_chains} is \code{TRUE} and via \code{lapply} otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of \code{implausibility}, forking can be highly effective, particularly when the function is simple. However, functions with calls to Rcpp or Python backends may not work and \code{mclapply} may not return any errors or may even hang.
 }
 \examples{
 # Example usage

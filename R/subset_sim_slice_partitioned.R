@@ -16,7 +16,8 @@
 #'     \item `max_num_chains`: Maximum number of chains to use per partition.
 #'     \item `box_limits`: Matrix defining the bounds of the sampling space.
 #'     \item `switch_settings_list`: List of settings for switches.
-#'     \item `debug_mode`: Logical. If TRUE, run in debug mode.
+#'     \item `debug_mode`: Logical. If TRUE, run each subset_sim in debug mode (with progress messages).
+#'     \item `forking`: Logical. If TRUE, each subset simulation is run in parallel with mclapply. Defaults to FALSE, see `details` section below.
 #'     \item `levels_dp`: Decimal places to round implausibility levels.
 #'     \item `one_per_level`: Logical. If TRUE, only retain one sample per level.
 #'   }
@@ -53,7 +54,9 @@
 #'   n_partitions = 2
 #' )
 #' @details
-#' Use this function to generate uniform samples within partitions. To combine into uniform samples of the target space, an importance sampling wrapper is required that estimates the subvolumes of each partition containing samples. *Due for next release*
+#' Uniform samples are generated within each partition using slice sampling. Note uniformity is guaranteed up to the guarantees afforded by slice samplers (we may not have converged/found all of the target compatible space). Samples are then combined across partitions using importance sampling with weights estimated according to the relative volumes of the subspaces found within each partition, to return uniform samples from the target space.
+#'
+#' If 2 or more partitions are requested, slice sampling will try to run in parallel via mclapply if `control_list$fork_chains` is `TRUE` and via `lapply` otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of `implausibility`, forking can be highly effective, particularly when the function is simple. However, functions with calls to Rcpp or Python backends may not work and `mclapply` may not return any errors or may even hang.
 #'
 #' @export
 subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3, control_list = list(), n_partitions = 4, random=FALSE) {
@@ -68,6 +71,7 @@ subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3
     estimate_volume = TRUE,
     switch_settings_list = NULL,
     debug_mode = FALSE,
+    forking = FALSE,
     levels_dp = 2,
     one_per_level = FALSE
   )
@@ -85,7 +89,7 @@ subset_sim_slice_partitioned <- function(implausibility, dims, target_levels = 3
   partition_volumes <- lapply(partitions, function(e) prod(e[,'Upper'] - e[,'Lower']))
 
   # Run simulations on partitions
-  results <- if (control_list$debug_mode) {
+  results <- if (!control_list$forking) {
     lapply(partitions, function(partition) {
       control_list$box_limits <- partition
       subset_sim_slice(implausibility, dims, target_levels, control_list)

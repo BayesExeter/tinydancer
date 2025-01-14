@@ -27,6 +27,7 @@ A vector of length 1 indicates a single wave and could be used to indicate a sin
 \item{\code{num_mutations}}{Integer. Number of iterations (often called mutations in the Evolutionary Monte Carlo literature) for individual chains within the parallel structure. Default: 30.}
 \item{\code{num_iterations}}{Integer. Number of iterations of the paralel chains. Default: 1000.}
 \item{\code{box_limits}}{Matrix. A \code{dims x 2} matrix specifying the lower and upper bounds of the initial space.}
+\item{\code{fork_chains}}{Logical. Whether or not forked parallel processing is available during construction of temperature ladders with more than 2 rungs. See \code{details} section below. Defaults to FALSE.}
 \item{\code{switch_settings_list}}{List. A list of length num_switches, each element containing a vector of the possible settings of each switch. Defaults to NULL}
 \item{\code{levels_dp}}{Integer. Number of decimal places for implausibility levels. Default: 2.}
 \item{\code{one_per_level}}{Logical. If \code{TRUE}, ensures unique implausibility levels for each wave. Default: \code{FALSE}.}
@@ -47,7 +48,11 @@ slice sampling and parallel tempering. The temperature ladder is constructed ite
 by finding implausibility levels for each wave that ensure good mixing.
 }
 \details{
-Currently no stopping rule exists for this, though the printing is sufficiently verbose for the user to understand what is happening. If a target compatible subspace exists, this algorithm will find it eventually, however, if the ladder seems to be converging far above the target, it may be worth the user intervening.
+A uniform sample of size \code{control_list$num_iterations} in the full space is evaluated and used to find the next ladder rung, the \code{implausibility} value defining a sub-volume of space that is \code{control_list$volume_ratio} times the size of the full space. Full space and the new sub-volume are then sampled uniformly via parallel-tempering MCMC and the next rung is found using the uniform samples from the smallest sub-volume. The full space is always sampled uniformly using \code{runif}, sub-volumes are sampled using a slice-sampler.
+
+Once 3 or more rungs exist, the slice samplers will try to run in parallel via mclapply if \code{control_list$fork_chains} is \code{TRUE} and via \code{lapply} otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of \code{implausibility}, forking can be highly effective, particularly when the function is simple and \code{control_list$num_mutations} is large. However, functions with calls to Rcpp or Python backends may not work and \code{mclapply} may not return any errors or may even hang.
+
+If it is not possible to reach the target space, the function will continue to find smaller and smaller volumes without a stopping rule. The printing is sufficiently verbose for the user to understand that this may be happening. If a target compatible subspace exists, this algorithm will find it eventually, however, if the ladder seems to be converging far above the target, it may be worth the user intervening. Inclusion of a stopping rule is planned for a future version.
 }
 \examples{
 # Example usage
@@ -69,7 +74,8 @@ implausibility <- function(x, target_level=3) {
 control_list <- list(
   box_limits = cbind(rep(-3, 2), rep(7, 2)),
   num_mutations = 8,
-  num_iterations = 100
+  num_iterations = 100,
+  fork_chains=TRUE
 )
 new_ladder <- construct_temperature_ladder(
   implausibility = implausibility,
@@ -134,7 +140,8 @@ implausibility <- function(x, targetLevel, levels=5, waves=3) {
 control_list <- list(
   num_mutations = 8,
   num_iterations = 100,
-  box_limits = cbind(rep(-3, 2), rep(7, 2))
+  box_limits = cbind(rep(-3, 2), rep(7, 2)),
+  fork_chains=TRUE
 )
 new_ladder <- construct_temperature_ladder(
   implausibility = implausibility,

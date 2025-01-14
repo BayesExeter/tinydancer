@@ -13,7 +13,7 @@ parallel_slice(
   final_target_levels,
   x_starts,
   box_limits,
-  debug_mode = FALSE,
+  fork_chains = FALSE,
   num_switches = 0,
   switch_settings_list = NULL,
   volume_ratio,
@@ -38,7 +38,7 @@ parallel_slice(
 
 \item{box_limits}{Matrix. The box region where sampling is constrained; each row corresponds to the lower and upper bounds of a dimension.}
 
-\item{debug_mode}{Logical. If \code{TRUE}, runs in debug mode with \code{lapply}; otherwise uses \code{mclapply} for parallelism. MAY NEED TO CHANGE FOR WINDOWS}
+\item{fork_chains}{Logical. If \code{FALSE}, parallel chains are executed one at a time via \code{lapply}; otherwise uses \code{mclapply} for parallelism. Note that mclapply and other forked parallel options are unstable in R, many are disabled in Rstudio (e.g. multicore in the future package). Note also that R does not allow forking on windows OS.}
 
 \item{num_switches}{Integer. Number of switches for discrete settings in the first chain (default: \code{0}).}
 

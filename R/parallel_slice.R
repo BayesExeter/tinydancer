@@ -10,7 +10,7 @@
 #' @param final_target_levels Numeric vector. The final implausibility levels for all constraints.
 #' @param x_starts Matrix. `num_chains` x `d`. Starting positions for all chains except the first.
 #' @param box_limits Matrix. The box region where sampling is constrained; each row corresponds to the lower and upper bounds of a dimension.
-#' @param debug_mode Logical. If `TRUE`, runs in debug mode with `lapply`; otherwise uses `mclapply` for parallelism. MAY NEED TO CHANGE FOR WINDOWS
+#' @param fork_chains Logical. If `FALSE`, parallel chains are executed one at a time via `lapply`; otherwise uses `mclapply` for parallelism. Note that mclapply and other forked parallel options are unstable in R, many are disabled in Rstudio (e.g. multicore in the future package). Note also that R does not allow forking on windows OS.
 #' @param num_switches Integer. Number of switches for discrete settings in the first chain (default: `0`).
 #' @param switch_settings_list List. A list of POSSIBLE settings for switches in the first chain.
 #' @param volume_ratio Numeric. Ratio for scaling the step size `w` across chains.
@@ -26,7 +26,7 @@
 #' @note The first chain samples uniformly over the box, so it does not use implausibility levels or starting values.
 #'
 parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_levels,
-                           final_target_levels, x_starts, box_limits, debug_mode = FALSE,
+                           final_target_levels, x_starts, box_limits, fork_chains = FALSE,
                            num_switches = 0, switch_settings_list = NULL, volume_ratio, print_every = 100,
                            implausibility) {
   # Determine the number of waves
@@ -49,7 +49,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
   chain1_imp <- implausibility(chain1_sample, final_target_levels)
 
   # Parallel sampling for other chains
-  parallel_chains <- if (debug_mode) {
+  parallel_chains <- if (!fork_chains) {
     lapply(2:num_chains, function(j) one_slice(
       x_start = x_starts[j - 1, ],
       M = num_mutations,
@@ -61,8 +61,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
       implausibility = implausibility
     ))
   } else {
-    plan("multicore", workers=num_chains-1)
-    future.apply::future_lapply(2:num_chains, function(j) one_slice(
+    mclapply(2:num_chains, function(j) one_slice(
       x_start = x_starts[j - 1, ],
       M = num_mutations,
       w = volume_ratio^((j - 1) / d),
@@ -71,7 +70,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
       final_levels = final_target_levels,
       final_num_waves = num_waves,
       implausibility = implausibility
-    ), future.seed = TRUE)
+    ))
   }
 
   # Preallocate combined chain results
@@ -105,7 +104,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
     chain1_imp <- implausibility(chain1_sample, final_target_levels)
 
     # Parallel mutation step
-    parallel_chains <- if (debug_mode) {
+    parallel_chains <- if (!fork_chains) {
       lapply(2:num_chains, function(j) one_slice(
         x_start = as.vector(chain_info$Xt[j, ]),
         M = num_mutations,
@@ -117,8 +116,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
         implausibility = implausibility
       ))
     } else {
-      plan("multicore", workers = num_chains-1)
-      future.apply::future_lapply(2:num_chains, function(j) one_slice(
+      mclapply(2:num_chains, function(j) one_slice(
         x_start = as.vector(chain_info$Xt[j, ]),
         M = num_mutations,
         w = volume_ratio^((j - 1) / d),
@@ -127,7 +125,7 @@ parallel_slice <- function(num_chains, num_mutations, num_iterations, d, imp_lev
         final_levels = final_target_levels,
         final_num_waves = num_waves,
         implausibility = implausibility
-      ), future.seed = TRUE)
+      ))
     }
 
     xn_imp[1, ] <- c(chain1_sample, chain1_imp)

@@ -12,11 +12,13 @@
 #'        Available options include:
 #'        \itemize{
 #'          \item `num_mutations`: Number of mutations per iteration.
-#'          \item `debug_mode`: Logical, whether to enable debug mode.
+#'          \item `fork_chains`: Logical. Whether or not forked parallel processing is available during parallel slice sampling with more than 2 chains. See `details` section below. Defaults to FALSE.
 #'          \item `print_every`: Number of iterations between progress messages.
 #'        }
 #'
 #' @return A list containing samples from the Parallel Tempering MCMC slice sampler.
+#' @details
+#' If 3 or more chains are present in `sampler`, the slice samplers will try to run in parallel via mclapply if `control_list$fork_chains` is `TRUE` and via `lapply` otherwise (the default). Forked processing in R is not stable, not available to all operating systems (e.g. it does not work on windows) and, at the time of writing, Rstudio does not permit it via the future package. Depending on the complexity of `implausibility`, forking can be highly effective, particularly when the function is simple and `control_list$num_mutations` is large. However, functions with calls to Rcpp or Python backends may not work and `mclapply` may not return any errors or may even hang.
 #' @examples
 #' # Example usage
 #' st1 <- rbind(c(0.000002, 0.000000875), c(0.000000875, 0.00025))
@@ -50,7 +52,7 @@
 sample_slice_ptmcmc <- function(sampler, n_iter = 1000, control_list = list(), implausibility) {
   # Merge default control values with user-specified options
   control_list$num_mutations <- control_list$num_mutations %||% sampler$control_list$num_mutations
-  control_list$debug_mode <- control_list$debug_mode %||% sampler$control_list$debug_mode
+  control_list$fork_chains <- control_list$fork_chains %||% sampler$control_list$fork_chains
   control_list$print_every <- control_list$print_every %||% sampler$control_list$print_every
 
   # Retrieve dimensions and temperature ladder details
@@ -67,7 +69,7 @@ sample_slice_ptmcmc <- function(sampler, n_iter = 1000, control_list = list(), i
     final_target_levels = sampler$control_list$target_level,
     x_starts = sampler$x_starts[, -c((d + 1):(d + n_waves))],
     box_limits = sampler$control_list$box_limits,
-    debug_mode = control_list$debug_mode,
+    fork_chains = control_list$fork_chains,
     num_switches = sampler$control_list$num_switches,
     switch_settings_list = sampler$control_list$switch_settings_list,
     volume_ratio = sampler$control_list$volume_ratio,
