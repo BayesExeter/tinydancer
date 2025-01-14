@@ -217,7 +217,7 @@ subset_sim_slice <- function(implausibility, dims, target_levels = 3, control_li
       }
       vol_target <- q/(N_I*control_list$num_mutations^(num_chains-2))
     }
-    else{
+    else if(is.null(vol_target)){
       vol_target <- "Not estimated"
     }
     final_samples <- one_slice_all(
