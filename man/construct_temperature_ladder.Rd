@@ -28,6 +28,7 @@ A vector of length 1 indicates a single wave and could be used to indicate a sin
 \item{\code{num_iterations}}{Integer. Number of iterations of the paralel chains. Default: 1000.}
 \item{\code{box_limits}}{Matrix. A \code{dims x 2} matrix specifying the lower and upper bounds of the initial space.}
 \item{\code{fork_chains}}{Logical. Whether or not forked parallel processing is available during construction of temperature ladders with more than 2 rungs. See \code{details} section below. Defaults to FALSE.}
+\item{\code{estimate_volume}}{Logical. Whether or not to estimate the relative volume of the target space. See \code{details} section below. Defaults to TRUE.}
 \item{\code{switch_settings_list}}{List. A list of length num_switches, each element containing a vector of the possible settings of each switch. Defaults to NULL}
 \item{\code{levels_dp}}{Integer. Number of decimal places for implausibility levels. Default: 2.}
 \item{\code{one_per_level}}{Logical. If \code{TRUE}, ensures unique implausibility levels for each wave. Default: \code{FALSE}.}
@@ -40,6 +41,7 @@ A list with:
 \item \code{imp_levels}: List of temperature/implausibility levels for each wave.
 \item \code{x_starts}: Matrix of starting values for the chains.
 \item \code{control_list}: Updated control list with additional elements used during sampling.
+\item \code{volume_estimate}: The estimated relative volume of the target space. Returns NULL if control_list$estimate_volume is FALSE
 }
 }
 \description{

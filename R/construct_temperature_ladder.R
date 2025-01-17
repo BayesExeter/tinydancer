@@ -17,6 +17,7 @@
 #'   \item{\code{num_iterations}}{Integer. Number of iterations of the paralel chains. Default: 1000.}
 #'   \item{\code{box_limits}}{Matrix. A \code{dims x 2} matrix specifying the lower and upper bounds of the initial space.}
 #'   \item{\code{fork_chains}}{Logical. Whether or not forked parallel processing is available during construction of temperature ladders with more than 2 rungs. See `details` section below. Defaults to FALSE.}
+#'   \item{\code{estimate_volume}}{Logical. Whether or not to estimate the relative volume of the target space. See `details` section below. Defaults to TRUE.}
 #'   \item{\code{switch_settings_list}}{List. A list of length num_switches, each element containing a vector of the possible settings of each switch. Defaults to NULL}
 #'   \item{\code{levels_dp}}{Integer. Number of decimal places for implausibility levels. Default: 2.}
 #'   \item{\code{one_per_level}}{Logical. If \code{TRUE}, ensures unique implausibility levels for each wave. Default: \code{FALSE}.}
@@ -27,6 +28,7 @@
 #'   - `imp_levels`: List of temperature/implausibility levels for each wave.
 #'   - `x_starts`: Matrix of starting values for the chains.
 #'   - `control_list`: Updated control list with additional elements used during sampling.
+#'   - `volume_estimate`: The estimated relative volume of the target space. Returns NULL if control_list$estimate_volume is FALSE
 #' @examples
 #' # Example usage
 #' st1 <- rbind(c(0.000002, 0.000000875), c(0.000000875, 0.00025))
@@ -138,6 +140,7 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
     box_limits = NULL,
     switch_settings_list = NULL,
     fork_chains = FALSE,
+    estimate_volume = TRUE,
     levels_dp = 2,
     one_per_level = FALSE,
     print_every = 100
@@ -156,6 +159,9 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
   num_iterations <- control_list$num_iterations
   num_switches <- control_list$num_switches
   switch_settings_list <- control_list$switch_settings_list
+  if(!control_list$estimate_volume){
+    volume_estimate=NULL
+  }
 
   # Initialize chain 1
   chain1_sample <- sapply(1:(dims - num_switches), function(i)
@@ -253,10 +259,19 @@ construct_temperature_ladder <- function(implausibility, dims, target_levels, co
   message("Ladder construction complete.")
   message(sprintf("Final temperature ladder: %s", paste(imp_levels, collapse = ", ")))
 
+  if(control_list$estimate_volume){
+    if(length(target_levels)>1)
+      in_last_space <- apply(t(apply(all_chains[[num_chains-1]][,seq(from=dims+1,by=1,to=dims+length(target_levels)),drop=F], 1, function(x) {x<=target_levels})), 1, all)
+    else
+      in_last_space <- t(apply(all_chains[[num_chains-1]][,seq(from=dims+1,by=1,to=dims+length(target_levels)),drop=F],1,function(x){x <= target_levels}))
+    volume_estimate <- control_list$volume_ratio^(length(imp_levels)-1)*sum(in_last_space)/length(in_last_space)
+  }
+
   return(list(
     imp_levels = imp_levels,
     x_starts = x_starts,
-    control_list = c(control_list, list(implausibility = implausibility, target_levels = target_levels))
+    control_list = c(control_list, list(implausibility = implausibility, target_levels = target_levels)),
+    volume_estimate=volume_estimate
   ))
 }
 
